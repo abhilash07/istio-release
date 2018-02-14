@@ -3,6 +3,7 @@ name: pilot-discovery
 templates:
   bpm.yml.erb: config/bpm.yml
   cf_config.yml.erb: config/cf_config.yml
+  istio/gateway.yml.erb: config/istio/gateway.yml
   certs/ca.crt.erb: config/certs/ca.crt
   certs/client.crt.erb: config/certs/client.crt
   certs/client.key.erb: config/certs/client.key
@@ -19,6 +20,18 @@ provides:
   type: pilot
 
 properties:
+  router.name:
+    description: "Name of the router"
+    default: cloudfoundry-ingress
+  router.listeners:
+    description: "Listeners to open on the route along with which hosts / protocols they serve"
+    default:
+      8443:
+        protocol: http
+        hosts: ["example.com"]
+      8080:
+        protocol: http
+        hosts: ["example.com"]
   copilot.server_ca_cert:
     description: "PEM-encoded CA certificate used to communicate with copilot-server"
   copilot.client_cert:
