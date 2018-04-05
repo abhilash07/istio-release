@@ -22,24 +22,26 @@ func TestBookinfoDemo(t *testing.T) {
 var (
 	agoutiDriver   *agouti.WebDriver
 	c              config.Config
-	defaultTimeout = 360 * time.Second
-	org, space     = "ISTO-ORG", "ISTIO-SPACE"
+	defaultTimeout = 120 * time.Second
+	org, space     = "ISTIO-ORG", "ISTIO-SPACE"
 )
 
 var _ = BeforeSuite(func() {
 	var err error
 	configPath := os.Getenv("CONFIG")
 	Expect(configPath).NotTo(BeEmpty())
+	fmt.Println(configPath)
 	c, err = config.NewConfig(configPath)
 	Expect(err).ToNot(HaveOccurred())
 
-	enableDockerCmd := cf.Cf("enable-feature-flag", "diego_docker").Wait(defaultTimeout)
-	Expect(enableDockerCmd).To(Exit(0))
-
 	apiCmd := cf.Cf("api", fmt.Sprintf("api.%s", c.ApiEndpoint), "--skip-ssl-validation").Wait(defaultTimeout)
 	Expect(apiCmd).To(Exit(0))
+
 	loginCmd := cf.Cf("auth", c.AdminUser, c.AdminPassword).Wait(defaultTimeout)
 	Expect(loginCmd).To(Exit(0))
+
+	enableDockerCmd := cf.Cf("enable-feature-flag", "diego_docker").Wait(defaultTimeout)
+	Expect(enableDockerCmd).To(Exit(0))
 
 	orgCmd := cf.Cf("create-org", org).Wait(defaultTimeout)
 	Expect(orgCmd).To(Exit(0))
@@ -48,15 +50,23 @@ var _ = BeforeSuite(func() {
 	targetCmd := cf.Cf("target", "-o", org, "-s", space).Wait(defaultTimeout)
 	Expect(targetCmd).To(Exit(0))
 
-	//TODO: fix the dockerhub to cf-routing and also the image tags
-	productPagePush := cf.Cf("push", "productpage", "-o", "zlav/examples-bookinfo-productpage-v1:1.0.0", "-d", "bosh-lite.com").Wait(defaultTimeout)
+	productPagePush := cf.Cf("push", "productpage", "-o", c.ProductPageDockerWithTag, "-d", c.ApiEndpoint).Wait(defaultTimeout)
 	Expect(productPagePush).To(Exit(0))
-	ratingsPush := cf.Cf("push", "ratings", "-o", "zlav/examples-bookinfo-ratings-v1:1.0.0", "-d", "apps.internal").Wait(defaultTimeout)
+	ratingsPush := cf.Cf("push", "ratings", "-o", c.RatingsDockerWithTag, "-d", c.AppsDomain).Wait(defaultTimeout)
 	Expect(ratingsPush).To(Exit(0))
-	reviewsPush := cf.Cf("push", "ratings", "-o", "zlav/examples-bookinfo-reviews-v3:1.0.0", "-d", "apps.internal").Wait(defaultTimeout)
+	reviewsPush := cf.Cf("push", "reviews", "-o", c.ReviewsDockerWithTag, "-d", c.AppsDomain, "-u", "none").Wait(defaultTimeout)
 	Expect(reviewsPush).To(Exit(0))
-	detailsPush := cf.Cf("push", "details", "-o", "zlav/examples-bookinfo-details-v1:1.0.0", "-d", "apps.internal").Wait(defaultTimeout)
+	detailsPush := cf.Cf("push", "details", "-o", c.DetailsDockerWithTag, "-d", c.AppsDomain).Wait(defaultTimeout)
 	Expect(detailsPush).To(Exit(0))
+
+	setProductEnvVar := cf.Cf("set-env", "productpage", "SERVICES_DOMAIN", c.AppsDomain).Wait(defaultTimeout)
+	Expect(setProductEnvVar).To(Exit(0))
+	productRestage := cf.Cf("restage", "productpage").Wait(defaultTimeout)
+	Expect(productRestage).To(Exit(0))
+	setReviewsEnvVar := cf.Cf("set-env", "reviews", "SERVICES_DOMAIN", c.AppsDomain).Wait(defaultTimeout)
+	Expect(setReviewsEnvVar).To(Exit(0))
+	reviewsRestage := cf.Cf("restage", "reviews").Wait(defaultTimeout)
+	Expect(reviewsRestage).To(Exit(0))
 
 	productDetailsPolicy := cf.Cf("add-network-policy", "productpage", "--destination-app", "details", "--protocol", "tcp", "--port", "9080").Wait(defaultTimeout)
 	Expect(productDetailsPolicy).To(Exit(0))
@@ -77,6 +87,14 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	cleanUpProductPage := cf.Cf("delete", "productpage", "-f", "-r").Wait(defaultTimeout)
+	Expect(cleanUpProductPage).To(Exit(0))
+	cleanUpReviews := cf.Cf("delete", "reviews", "-f", "-r").Wait(defaultTimeout)
+	Expect(cleanUpReviews).To(Exit(0))
+	cleanUpRatings := cf.Cf("delete", "ratings", "-f", "-r").Wait(defaultTimeout)
+	Expect(cleanUpRatings).To(Exit(0))
+	cleanUpDetails := cf.Cf("delete", "details", "-f", "-r").Wait(defaultTimeout)
+	Expect(cleanUpDetails).To(Exit(0))
 	cleanUpCmd := cf.Cf("delete-org", org, "-f").Wait(defaultTimeout)
 	Expect(cleanUpCmd).To(Exit(0))
 	Expect(agoutiDriver.Stop()).To(Succeed())
