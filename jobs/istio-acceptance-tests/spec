@@ -1,0 +1,24 @@
+---
+name: istio-acceptance-tests
+templates:
+  run.erb: bin/run
+  config.json.erb: config/config.json
+
+packages:
+- golang-1.9-linux
+- istio-acceptance-tests
+- cf-cli
+
+properties:
+  istio_acceptance_tests.api_endpoint:
+    description: ""
+    default:
+  istio_acceptance_tests.admin_user:
+    description: ""
+    default:
+  istio_acceptance_tests.admin_password:
+    description: ""
+    default:
+  istio_acceptance_tests.apps_domain:
+    description: ""
+    default:

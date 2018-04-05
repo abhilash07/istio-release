@@ -1,0 +1,6 @@
+{
+  "cf_api": "bosh-lite.com",
+  "cf_admin_user": "admin",
+  "cf_admin_password": "vvmgrhuguh3hpt3e5jvx" ,
+  "cf_apps_domain": "apps.internal"
+}
